@@ -38,6 +38,8 @@ This is what you need to do:
 Should work then
 */
 #include "home_wifi_multi.h"
+#define SSID1 "GloriStudioJD"
+#define PWD1 "qwer1234"
 
 OV2640 cam;
 
