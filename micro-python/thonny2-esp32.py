@@ -10,6 +10,7 @@ wlan.active(True)
 if not wlan.isconnected():
     print('connecting to network...')
     wlan.connect('GloriStudioJD', 'qwer1234')
+    
     while not wlan.isconnected():
         pass
 print('network config:', wlan.ifconfig())
@@ -73,14 +74,6 @@ s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM,0)
 
 try:
     while True:
-        current_time = time.time()
-        elapsed_time = current_time - start_time
-        
-        # 每分钟保存一个新的视频文件
-        if elapsed_time >= 60:
-            file_count += 1
-            start_time = current_time
-        
         buf = camera.capture()  # 获取图像数据
         s.sendto(buf, ("192.168.68.175", 9090))  # 向服务器发送图像数据
         time.sleep(0.1)
@@ -88,4 +81,3 @@ except:
     pass
 finally:
     camera.deinit()
-
