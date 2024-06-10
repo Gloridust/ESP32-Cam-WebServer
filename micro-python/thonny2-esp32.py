@@ -2,7 +2,7 @@ import socket
 import network
 import camera
 import time
-
+import os
 
 # 连接wifi
 wlan = network.WLAN(network.STA_IF)
@@ -14,8 +14,7 @@ if not wlan.isconnected():
     while not wlan.isconnected():
         pass
 print('network config:', wlan.ifconfig())
- 
- 
+
 # 摄像头初始化
 try:
     camera.init(0, format=camera.JPEG)
@@ -23,62 +22,69 @@ except Exception as e:
     camera.deinit()
     camera.init(0, format=camera.JPEG)
 
-
 # 其他设置：
-# 上翻下翻
-camera.flip(1)
-#左/右
-camera.mirror(1)
+camera.flip(1)  # 上翻下翻
+camera.mirror(1)  # 左/右
 
-# 分辨率
-camera.framesize(camera.FRAME_HVGA)
-# 选项如下：
-# FRAME_96X96 FRAME_QQVGA FRAME_QCIF FRAME_HQVGA FRAME_240X240
-# FRAME_QVGA FRAME_CIF FRAME_HVGA FRAME_VGA FRAME_SVGA
-# FRAME_XGA FRAME_HD FRAME_SXGA FRAME_UXGA FRAME_FHD
-# FRAME_P_HD FRAME_P_3MP FRAME_QXGA FRAME_QHD FRAME_WQXGA
-# FRAME_P_FHD FRAME_QSXGA
+# 设置分辨率为1080p
+camera.framesize(camera.FRAME_FHD)
 
 # 特效
 camera.speffect(camera.EFFECT_NONE)
-#选项如下：
-# 效果\无（默认）效果\负效果\ BW效果\红色效果\绿色效果\蓝色效果\复古效果
-# EFFECT_NONE (default) EFFECT_NEG \EFFECT_BW\ EFFECT_RED\ EFFECT_GREEN\ EFFECT_BLUE\ EFFECT_RETRO
 
 # 白平衡
 # camera.whitebalance(camera.WB_HOME)
-#选项如下：
-# WB_NONE (default) WB_SUNNY WB_CLOUDY WB_OFFICE WB_HOME
 
 # 饱和
 camera.saturation(0)
-#-2,2（默认为0）. -2灰度
-# -2,2 (default 0). -2 grayscale 
 
 # 亮度
 camera.brightness(0)
-#-2,2（默认为0）. 2亮度
-# -2,2 (default 0). 2 brightness
 
 # 对比度
 camera.contrast(0)
-#-2,2（默认为0）.2高对比度
-#-2,2 (default 0). 2 highcontrast
 
 # 质量
 camera.quality(10)
-#10-63数字越小质量越高
 
 # socket UDP 的创建
-s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM,0)
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+
+# 文件保存相关
+def save_image(image_data, filename):
+    with open(filename, 'wb') as f:
+        f.write(image_data)
+
+def save_video(video_data, filename):
+    with open(filename, 'wb') as f:
+        f.write(video_data)
 
 try:
+    frame_count = 1
+    video_buffer = b''
+    start_time = time.time()
+    
     while True:
         buf = camera.capture()  # 获取图像数据
         s.sendto(buf, ("192.168.68.175", 9090))  # 向服务器发送图像数据
+        
+        # 保存图像为JPEG文件
+        image_filename = f"/sdcard/{frame_count:06d}.jpg"
+        save_image(buf, image_filename)
+        
+        # 累积视频数据
+        video_buffer += buf
+        
+        # 每分钟保存一次视频文件
+        if time.time() - start_time >= 60:
+            video_filename = f"/sdcard/{frame_count//6000:05d}.mp4"
+            save_video(video_buffer, video_filename)
+            video_buffer = b''
+            start_time = time.time()
+        
+        frame_count += 1
         time.sleep(0.1)
-except:
-    pass
+except Exception as e:
+    print(e)
 finally:
     camera.deinit()
-
