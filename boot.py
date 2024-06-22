@@ -40,7 +40,7 @@ def web_page():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ESP32-CAM Stream</title>
+        <title>ESP32-CAM-WebServer</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -87,7 +87,7 @@ def web_page():
     </head>
     <body>
         <div class="container">
-            <h1>ESP32-CAM Stream</h1>
+            <h1>ESP32-CAM-WebServer</h1>
             <img src="/stream" id="stream" alt="ESP32-CAM Stream">
         </div>
         <div class="footer">
