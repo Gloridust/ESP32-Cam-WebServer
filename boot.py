@@ -5,6 +5,7 @@ import uos
 from machine import SDCard, Pin
 import time
 import gc
+import _thread
 
 # 设置闪光灯引脚并确保它是关闭的
 flash = Pin(4, Pin.OUT)
@@ -21,7 +22,7 @@ print('网络配置:', ap.ifconfig())
 
 # 初始化摄像头
 camera.init(0, format=camera.JPEG)
-camera.framesize(camera.FRAME_FHD)
+camera.framesize(camera.FRAME_HD)  # 1280x720 for SD card recording
 
 # 尝试挂载 SD 卡
 sd_available = False
@@ -40,7 +41,7 @@ def web_page():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ESP32-CAM-WebServer</title>
+        <title>ESP32-CAM Stream</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -87,7 +88,7 @@ def web_page():
     </head>
     <body>
         <div class="container">
-            <h1>ESP32-CAM-WebServer</h1>
+            <h1>ESP32-CAM Stream</h1>
             <img src="/stream" id="stream" alt="ESP32-CAM Stream">
         </div>
         <div class="footer">
@@ -115,49 +116,55 @@ def web_page():
     return html
 
 def send_frame(conn):
+    camera.framesize(camera.FRAME_VGA)  # 640x480 for web streaming
     frame = camera.capture()
     conn.send(b'HTTP/1.1 200 OK\r\n')
     conn.send(b'Content-Type: image/jpeg\r\n')
     conn.send(f'Content-Length: {len(frame)}\r\n'.encode())
     conn.send(b'\r\n')
     conn.sendall(frame)
+    camera.framesize(camera.FRAME_HD)  # Switch back to HD for SD card recording
 
-def main():
+def record_to_sd():
+    global frame_count
+    while True:
+        if sd_available:
+            frame = camera.capture()
+            with open(f'/sd/frame_{frame_count}.jpg', 'wb') as f:
+                f.write(frame)
+            frame_count += 1
+        time.sleep(0.1)  # Adjust this value to control recording frequency
+
+def web_server():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(('', 80))
     s.listen(5)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     print('Web 服务器已启动')
 
-    global frame_count
-
     while True:
-        conn, addr = s.accept()
-        print('客户端连接:', addr)
         try:
+            conn, addr = s.accept()
+            print('客户端连接:', addr)
             request = conn.recv(1024).decode()
             
             if 'GET /stream' in request:
                 send_frame(conn)
-                
-                # 如果 SD 卡可用，保存图像
-                if sd_available:
-                    with open(f'/sd/frame_{frame_count}.jpg', 'wb') as f:
-                        f.write(camera.capture())
-                    frame_count += 1
-            
             elif 'GET /' in request:
                 conn.send('HTTP/1.1 200 OK\r\n')
                 conn.send('Content-Type: text/html\r\n')
                 conn.send('\r\n')
                 conn.sendall(web_page())
             
+            conn.close()
         except Exception as e:
             print("Error handling request:", e)
-        finally:
-            conn.close()
         
         gc.collect()  # 进行垃圾回收
+
+def main():
+    _thread.start_new_thread(record_to_sd, ())
+    web_server()
 
 if __name__ == '__main__':
     main()
