@@ -21,7 +21,7 @@ print('网络配置:', ap.ifconfig())
 
 # 初始化摄像头
 camera.init(0, format=camera.JPEG)
-camera.framesize(camera.FRAME_VGA)
+camera.framesize(camera.FRAME_FHD)
 
 # 尝试挂载 SD 卡
 sd_available = False
